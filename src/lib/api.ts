@@ -5,8 +5,11 @@ import type {
   Product,
   ProductListResponse,
   ProductStatus,
+  QuoteList,
+  QuoteListStatus,
   Supplier,
-  SupplierDocument
+  SupplierDocument,
+  DashboardSummary
 } from "@/types";
 
 const API_URL = (
@@ -72,8 +75,8 @@ async function request<T>(
       ...(options.body instanceof FormData
         ? {}
         : {
-            "Content-Type": "application/json"
-          }),
+          "Content-Type": "application/json"
+        }),
       ...(options.headers ?? {})
     },
     cache: "no-store"
@@ -114,15 +117,92 @@ export async function apiSendFormData<T = unknown>(
 }
 
 export const api = {
+    async getDashboardSummary() {
+    return request<DashboardSummary>("/dashboard/summary");
+  },
+
   async listSuppliers() {
     return request<Supplier[]>("/suppliers");
+  },
+
+    async listQuoteLists(params?: {
+    status?: string;
+    supplierId?: string;
+  }) {
+    const searchParams = new URLSearchParams();
+
+    if (params?.status) {
+      searchParams.set("status", params.status);
+    }
+
+    if (params?.supplierId) {
+      searchParams.set("supplierId", params.supplierId);
+    }
+
+    const query = searchParams.toString();
+
+    return request<QuoteList[]>(
+      `/quote-lists${query ? `?${query}` : ""}`
+    );
+  },
+
+  async getQuoteList(id: string) {
+    return request<QuoteList>(`/quote-lists/${id}`);
+  },
+
+  async createQuoteList(data: {
+    name?: string;
+    notes?: string;
+    supplierId: string;
+    productIds?: string[];
+  }) {
+    return request<QuoteList>("/quote-lists", {
+      method: "POST",
+      body: JSON.stringify(data)
+    });
+  },
+
+  async updateQuoteList(
+    id: string,
+    data: {
+      name?: string;
+      notes?: string;
+      status?: QuoteListStatus;
+    }
+  ) {
+    return request<QuoteList>(`/quote-lists/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data)
+    });
+  },
+
+  async deleteQuoteList(id: string) {
+    return request<void>(`/quote-lists/${id}`, {
+      method: "DELETE"
+    });
+  },
+
+  async addItemsToQuoteList(id: string, productIds: string[]) {
+    return request<QuoteList>(`/quote-lists/${id}/items`, {
+      method: "POST",
+      body: JSON.stringify({ productIds })
+    });
+  },
+
+  async removeItemFromQuoteList(quoteListId: string, itemId: string) {
+    return request<void>(
+      `/quote-lists/${quoteListId}/items/${itemId}`,
+      {
+        method: "DELETE"
+      }
+    );
   },
 
   async getSupplier(id: string) {
     return request<Supplier>(`/suppliers/${id}`);
   },
 
-    async listCommercialTransactions(params?: {
+  async listCommercialTransactions(params?: {
     supplierId?: string;
     status?: CommercialTransactionStatus;
     search?: string;
@@ -275,99 +355,99 @@ export const api = {
   },
 
   async deleteProductsBulk(ids: string[]) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3333";
 
-  const response = await fetch(`${baseUrl}/products/bulk`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ ids })
-  });
+    const response = await fetch(`${baseUrl}/products/bulk`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ ids })
+    });
 
-  if (!response.ok) {
-    let message = "Não foi possível excluir os produtos.";
+    if (!response.ok) {
+      let message = "Não foi possível excluir os produtos.";
 
-    try {
-      const data = await response.json();
+      try {
+        const data = await response.json();
 
-      if (data?.message) {
-        message = data.message;
+        if (data?.message) {
+          message = data.message;
+        }
+      } catch {
+        // resposta sem corpo JSON
       }
-    } catch {
-      // resposta sem corpo JSON
+
+      throw new Error(message);
+    }
+  },
+
+  async createSupplier(data: {
+    name: string;
+    document?: string;
+    contactName?: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+    notes?: string;
+    image?: File | null;
+  }) {
+    const formData = new FormData();
+
+    formData.append("name", data.name);
+    formData.append("document", data.document ?? "");
+    formData.append("contactName", data.contactName ?? "");
+    formData.append("email", data.email ?? "");
+    formData.append("phone", data.phone ?? "");
+    formData.append("website", data.website ?? "");
+    formData.append("notes", data.notes ?? "");
+    formData.append("isActive", "true");
+
+    if (data.image) {
+      formData.append("image", data.image);
     }
 
-    throw new Error(message);
-  }
-},
+    return request<Supplier>("/suppliers", {
+      method: "POST",
+      body: formData
+    });
+  },
 
- async createSupplier(data: {
-  name: string;
-  document?: string;
-  contactName?: string;
-  email?: string;
-  phone?: string;
-  website?: string;
-  notes?: string;
-  image?: File | null;
-}) {
-  const formData = new FormData();
+  async updateSupplier(
+    id: string,
+    data: Partial<{
+      name: string;
+      document: string;
+      contactName: string;
+      email: string;
+      phone: string;
+      website: string;
+      notes: string;
+      isActive: boolean;
+      image: File | null;
+    }>
+  ) {
+    const formData = new FormData();
 
-  formData.append("name", data.name);
-  formData.append("document", data.document ?? "");
-  formData.append("contactName", data.contactName ?? "");
-  formData.append("email", data.email ?? "");
-  formData.append("phone", data.phone ?? "");
-  formData.append("website", data.website ?? "");
-  formData.append("notes", data.notes ?? "");
-  formData.append("isActive", "true");
+    formData.append("name", data.name ?? "");
+    formData.append("document", data.document ?? "");
+    formData.append("contactName", data.contactName ?? "");
+    formData.append("email", data.email ?? "");
+    formData.append("phone", data.phone ?? "");
+    formData.append("website", data.website ?? "");
+    formData.append("notes", data.notes ?? "");
+    formData.append("isActive", String(data.isActive ?? true));
 
-  if (data.image) {
-    formData.append("image", data.image);
-  }
+    if (data.image) {
+      formData.append("image", data.image);
+    }
 
-  return request<Supplier>("/suppliers", {
-    method: "POST",
-    body: formData
-  });
-},
-
-async updateSupplier(
-  id: string,
-  data: Partial<{
-    name: string;
-    document: string;
-    contactName: string;
-    email: string;
-    phone: string;
-    website: string;
-    notes: string;
-    isActive: boolean;
-    image: File | null;
-  }>
-) {
-  const formData = new FormData();
-
-  formData.append("name", data.name ?? "");
-  formData.append("document", data.document ?? "");
-  formData.append("contactName", data.contactName ?? "");
-  formData.append("email", data.email ?? "");
-  formData.append("phone", data.phone ?? "");
-  formData.append("website", data.website ?? "");
-  formData.append("notes", data.notes ?? "");
-  formData.append("isActive", String(data.isActive ?? true));
-
-  if (data.image) {
-    formData.append("image", data.image);
-  }
-
-  return request<Supplier>(`/suppliers/${id}`, {
-    method: "PUT",
-    body: formData
-  });
-},
+    return request<Supplier>(`/suppliers/${id}`, {
+      method: "PUT",
+      body: formData
+    });
+  },
 
   async deleteSupplier(id: string) {
     return request<void>(`/suppliers/${id}`, {
@@ -429,7 +509,7 @@ async updateSupplier(
     });
   },
 
-    async listProducts(params?: {
+  async listProducts(params?: {
     supplierId?: string;
     status?: ProductStatus;
     search?: string;
@@ -451,7 +531,7 @@ async updateSupplier(
       query.set("search", params.search);
     }
 
-        if (params?.activeSuppliersOnly) {
+    if (params?.activeSuppliersOnly) {
       query.set("activeSuppliersOnly", "true");
     }
 

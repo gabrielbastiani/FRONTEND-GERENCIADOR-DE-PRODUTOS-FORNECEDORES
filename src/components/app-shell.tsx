@@ -12,7 +12,8 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/fornecedores", label: "Fornecedores" },
-  { href: "/produtos", label: "Produtos" }
+  { href: "/produtos", label: "Produtos" },
+  { href: "/listas-orcamento", label: "Orçamentos prévios" }
 ];
 
 function getLinkClassName(isActive: boolean) {

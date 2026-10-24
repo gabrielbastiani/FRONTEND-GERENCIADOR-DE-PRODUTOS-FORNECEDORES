@@ -108,7 +108,7 @@ export type Product = {
   justification: string | null;
   createdAt: string;
   updatedAt: string;
-  supplier?: Supplier;
+  supplier?: Pick<Supplier, "id" | "name" | "email" | "phone">;
   catalog?: Catalog | null;
   images: ProductImage[];
   statusHistory?: ProductStatusHistory[];
@@ -190,4 +190,117 @@ export type CommercialTransaction = {
     documents?: number;
     statusHistory?: number;
   };
+};
+
+export type QuoteListStatus =
+  | "DRAFT"
+  | "SENT"
+  | "ARCHIVED";
+
+export type QuoteListItem = {
+  id: string;
+  productId: string;
+  productName: string;
+  productCode?: string | null;
+  productReference?: string | null;
+  createdAt: string;
+  product?: {
+    id: string;
+    name: string;
+    code?: string | null;
+    referenceCode?: string | null;
+    supplierId: string;
+  };
+};
+
+export type QuoteList = {
+  id: string;
+  name: string;
+  notes?: string | null;
+  status: QuoteListStatus;
+  supplierId: string;
+  supplier: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    isActive: boolean;
+  };
+  items: QuoteListItem[];
+  sentAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DashboardSummary = {
+  suppliers: {
+    total: number;
+    active: number;
+    inactive: number;
+  };
+
+  catalogs: {
+    total: number;
+  };
+
+  products: {
+    total: number;
+    notAnalyzed: number;
+    inValidation: number;
+    promising: number;
+    waiting: number;
+    discarded: number;
+  };
+
+  quoteLists: {
+    total: number;
+    drafts: number;
+    sent: number;
+    archived: number;
+  };
+
+  transactions: {
+    total: number;
+    open: number;
+    approved: number;
+    effectiveOrders: number;
+    completed: number;
+    cancelled: number;
+  };
+
+  alerts: {
+    productsWithoutAnalysis: number;
+    inactiveSuppliersWithProducts: number;
+    draftQuoteLists: number;
+  };
+
+  recentProducts: Array<{
+    id: string;
+    name: string;
+    referenceCode: string | null;
+    supplierId: string;
+    supplierName: string;
+    status: string;
+    createdAt: string;
+  }>;
+
+  recentQuoteLists: Array<{
+    id: string;
+    name: string;
+    supplierId: string;
+    supplierName: string;
+    status: string;
+    itemsCount: number;
+    updatedAt: string;
+  }>;
+
+  recentTransactions: Array<{
+    id: string;
+    supplierId: string;
+    supplierName: string;
+    quoteReference: string | null;
+    orderReference: string | null;
+    status: string;
+    updatedAt: string;
+  }>;
 };

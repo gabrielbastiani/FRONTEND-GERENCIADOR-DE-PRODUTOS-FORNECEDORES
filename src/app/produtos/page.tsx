@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Plus, Search, Trash2, X } from "lucide-react";
+import { FileText, Plus, Search, Trash2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import {
   formatCurrency,
@@ -13,8 +13,12 @@ import type {
   ProductStatus,
   Supplier
 } from "@/types";
+import { toQuoteProduct } from "@/lib/quote-request";
 import { Loading } from "@/components/loading";
 import { StatusBadge } from "@/components/status-badge";
+import { SupplierContactButtons } from "@/components/supplier-contact-buttons";
+import { QuoteRequestModal } from "@/components/quote-request-modal";
+import { SaveToQuoteListModal } from "@/components/save-to-quote-list-modal";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -29,11 +33,38 @@ export default function ProductsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
 
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [saveListOpen, setSaveListOpen] = useState(false);
+
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   const allSelected =
-    products.length > 0 && selectedIds.length === products.length;
-  const someSelected = selectedIds.length > 0 && !allSelected;
+    products.length > 0 &&
+    selectedIds.length === products.length;
+
+  const someSelected =
+    selectedIds.length > 0 && !allSelected;
+
+  const selectedProducts = products.filter((product) =>
+    selectedIds.includes(product.id)
+  );
+
+  const selectedSupplierIds = Array.from(
+    new Set(
+      selectedProducts.map(
+        (product) => product.supplier?.id ?? ""
+      )
+    )
+  );
+
+  const hasSingleSupplier =
+    selectedProducts.length > 0 &&
+    selectedSupplierIds.length === 1 &&
+    selectedSupplierIds[0] !== "";
+
+  const quoteSupplier = hasSingleSupplier
+    ? selectedProducts[0].supplier
+    : undefined;
 
   useEffect(() => {
     if (headerCheckboxRef.current) {
@@ -41,12 +72,18 @@ export default function ProductsPage() {
     }
   }, [someSelected]);
 
+  useEffect(() => {
+    if (quoteOpen && !hasSingleSupplier) {
+      setQuoteOpen(false);
+    }
+  }, [quoteOpen, hasSingleSupplier]);
+
   async function loadProducts() {
     try {
       setLoading(true);
       setError("");
 
-            const result = await api.listProducts({
+      const result = await api.listProducts({
         search: search || undefined,
         status: status || undefined,
         supplierId: supplierId || undefined,
@@ -57,7 +94,6 @@ export default function ProductsPage() {
 
       setProducts(result.data);
 
-      // mantém apenas seleções que ainda existem na lista
       setSelectedIds((current) =>
         current.filter((id) =>
           result.data.some((product) => product.id === id)
@@ -70,12 +106,17 @@ export default function ProductsPage() {
     }
   }
 
-    useEffect(() => {
-    api.listSuppliers()
-      .then((data) =>
-        setSuppliers(data.filter((supplier) => supplier.isActive))
-      )
-      .catch((err) => setError(getErrorMessage(err)));
+  useEffect(() => {
+    api
+      .listSuppliers()
+      .then((data) => {
+        setSuppliers(
+          data.filter((supplier) => supplier.isActive)
+        );
+      })
+      .catch((err) => {
+        setError(getErrorMessage(err));
+      });
   }, []);
 
   useEffect(() => {
@@ -96,7 +137,9 @@ export default function ProductsPage() {
 
   function toggleAll() {
     setSelectedIds(
-      allSelected ? [] : products.map((product) => product.id)
+      allSelected
+        ? []
+        : products.map((product) => product.id)
     );
   }
 
@@ -125,6 +168,7 @@ export default function ProductsPage() {
       await api.deleteProductsBulk(selectedIds);
 
       setSelectedIds([]);
+
       setSuccess(
         quantity === 1
           ? "1 produto excluído com sucesso."
@@ -139,6 +183,13 @@ export default function ProductsPage() {
     }
   }
 
+  function handleListSaved() {
+    setSelectedIds([]);
+    setSuccess(
+      "Os produtos foram salvos na lista de orçamento."
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -146,6 +197,7 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold text-slate-900">
             Produtos
           </h1>
+
           <p className="mt-1 text-sm text-slate-500">
             Cadastre e organize seus produtos manualmente.
           </p>
@@ -166,6 +218,7 @@ export default function ProductsPage() {
             size={17}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
+
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -180,6 +233,7 @@ export default function ProductsPage() {
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         >
           <option value="">Todos os fornecedores</option>
+
           {suppliers.map((supplier) => (
             <option key={supplier.id} value={supplier.id}>
               {supplier.name}
@@ -216,14 +270,56 @@ export default function ProductsPage() {
       )}
 
       {selectedIds.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-medium text-blue-900">
-            {selectedIds.length === 1
-              ? "1 produto selecionado"
-              : `${selectedIds.length} produtos selecionados`}
-          </p>
+        <div className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-blue-900">
+              {selectedIds.length === 1
+                ? "1 produto selecionado"
+                : `${selectedIds.length} produtos selecionados`}
 
-          <div className="flex gap-2">
+              {hasSingleSupplier && quoteSupplier?.name
+                ? ` · ${quoteSupplier.name}`
+                : ""}
+            </p>
+
+            {!hasSingleSupplier && (
+              <p className="mt-1 text-xs text-amber-700">
+                Selecione produtos de um único fornecedor
+                para solicitar orçamento ou salvar em lista.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setQuoteOpen(true)}
+              disabled={deleting || !hasSingleSupplier}
+              title={
+                hasSingleSupplier
+                  ? "Gerar mensagem de solicitação de orçamento"
+                  : "Selecione produtos de um único fornecedor"
+              }
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileText size={16} />
+              Solicitar orçamento
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSaveListOpen(true)}
+              disabled={deleting || !hasSingleSupplier}
+              title={
+                hasSingleSupplier
+                  ? "Salvar produtos em uma lista de orçamento"
+                  : "Selecione produtos de um único fornecedor"
+              }
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Salvar em lista
+            </button>
+
             <button
               type="button"
               onClick={() => setSelectedIds([])}
@@ -241,7 +337,9 @@ export default function ProductsPage() {
               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
             >
               <Trash2 size={16} />
-              {deleting ? "Excluindo..." : "Excluir selecionados"}
+              {deleting
+                ? "Excluindo..."
+                : "Excluir selecionados"}
             </button>
           </div>
         </div>
@@ -256,7 +354,7 @@ export default function ProductsPage() {
       ) : (
         <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-left text-sm">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="w-12 px-5 py-3">
@@ -270,18 +368,40 @@ export default function ProductsPage() {
                       className="h-4 w-4 cursor-pointer rounded border-slate-300"
                     />
                   </th>
-                  <th className="px-5 py-3">Produto</th>
-                  <th className="px-5 py-3">Fornecedor</th>
-                  <th className="px-5 py-3">Referência</th>
-                  <th className="px-5 py-3">Custo</th>
-                  <th className="px-5 py-3">Situação</th>
+
+                  <th className="px-5 py-3">
+                    Produto
+                  </th>
+
+                  <th className="px-5 py-3">
+                    Fornecedor
+                  </th>
+
+                  <th className="px-5 py-3">
+                    Contato
+                  </th>
+
+                  <th className="px-5 py-3">
+                    Referência
+                  </th>
+
+                  <th className="px-5 py-3">
+                    Custo
+                  </th>
+
+                  <th className="px-5 py-3">
+                    Situação
+                  </th>
+
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
 
               <tbody className="divide-y">
                 {products.map((product) => {
-                  const isSelected = selectedIds.includes(product.id);
+                  const isSelected = selectedIds.includes(
+                    product.id
+                  );
 
                   return (
                     <tr
@@ -296,7 +416,9 @@ export default function ProductsPage() {
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => toggleProduct(product.id)}
+                          onChange={() =>
+                            toggleProduct(product.id)
+                          }
                           disabled={deleting}
                           aria-label={`Selecionar ${product.name}`}
                           className="h-4 w-4 cursor-pointer rounded border-slate-300"
@@ -325,7 +447,9 @@ export default function ProductsPage() {
                             </Link>
 
                             <p className="text-xs text-slate-500">
-                              {product.brand || "Marca não informada"}
+                              {product.brand ||
+                                "Marca não informada"}
+
                               {product.model
                                 ? ` · ${product.model}`
                                 : ""}
@@ -336,6 +460,19 @@ export default function ProductsPage() {
 
                       <td className="px-5 py-4 text-slate-600">
                         {product.supplier?.name || "-"}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <SupplierContactButtons
+                          variant="icon"
+                          supplierName={product.supplier?.name}
+                          phone={product.supplier?.phone}
+                          email={product.supplier?.email}
+                          productName={product.name}
+                          productReference={
+                            product.referenceCode
+                          }
+                        />
                       </td>
 
                       <td className="px-5 py-4 text-slate-600">
@@ -366,6 +503,32 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      <QuoteRequestModal
+        open={quoteOpen}
+        onClose={() => setQuoteOpen(false)}
+        supplier={{
+          name: quoteSupplier?.name,
+          phone: quoteSupplier?.phone,
+          email: quoteSupplier?.email
+        }}
+        products={selectedProducts.map(toQuoteProduct)}
+      />
+
+      <SaveToQuoteListModal
+        open={saveListOpen}
+        onClose={() => setSaveListOpen(false)}
+        supplier={
+          quoteSupplier
+            ? {
+                id: quoteSupplier.id,
+                name: quoteSupplier.name
+              }
+            : undefined
+        }
+        productIds={selectedIds}
+        onSaved={handleListSaved}
+      />
     </div>
   );
 }

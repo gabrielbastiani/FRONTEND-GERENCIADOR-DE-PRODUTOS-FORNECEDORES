@@ -21,6 +21,7 @@ import { Loading } from "@/components/loading";
 import { FileUploadField } from "@/components/file-upload-field";
 import { CommercialTransactions } from "@/components/suppliers/commercial-transactions";
 import { useRouter } from "next/navigation";
+import { SupplierContactButtons } from "@/components/supplier-contact-buttons";
 
 export default function SupplierDetails({
   supplierId
@@ -279,6 +280,13 @@ export default function SupplierDetails({
             <p className="mt-1 text-sm text-slate-700">
               {supplier.phone || "-"}
             </p>
+            <SupplierContactButtons
+  variant="full"
+  className="mt-3"
+  supplierName={supplier.name}
+  phone={supplier.phone}
+  email={supplier.email}
+/>
           </div>
 
           <div>

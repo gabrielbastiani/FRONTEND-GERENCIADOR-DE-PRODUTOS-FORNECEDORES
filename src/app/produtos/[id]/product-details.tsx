@@ -8,6 +8,8 @@ import {
   Save,
   Trash2,
   Pencil,
+  FileText,
+  ListPlus
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -19,6 +21,10 @@ import type { Product, ProductStatus } from "@/types";
 import { Loading } from "@/components/loading";
 import { StatusBadge } from "@/components/status-badge";
 import { MarketplaceResearchPanel } from "@/components/marketplace-research-panel";
+import { SupplierContactButtons } from "@/components/supplier-contact-buttons";
+import { QuoteRequestModal } from "@/components/quote-request-modal";
+import { toQuoteProduct } from "@/lib/quote-request";
+import { SaveToQuoteListModal } from "@/components/save-to-quote-list-modal";
 
 export default function ProductDetails({
   productId
@@ -26,6 +32,8 @@ export default function ProductDetails({
   productId: string;
 }) {
   const [product, setProduct] = useState<Product | null>(null);
+  const [saveListOpen, setSaveListOpen] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
   const [status, setStatus] =
     useState<ProductStatus>("NOT_ANALYZED");
   const [justification, setJustification] = useState("");
@@ -72,9 +80,9 @@ export default function ProductDetails({
       setProduct((current) =>
         current
           ? {
-              ...current,
-              ...updated
-            }
+            ...current,
+            ...updated
+          }
           : updated
       );
     } catch (err) {
@@ -146,7 +154,7 @@ export default function ProductDetails({
           </p>
         </div>
 
-                <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href={`/produtos/${product.id}/editar`}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -215,6 +223,58 @@ export default function ProductDetails({
               <dd className="mt-1 text-sm text-slate-700">
                 {product.supplier?.name || "-"}
               </dd>
+              <SupplierContactButtons
+                variant="full"
+                className="mt-3"
+                supplierName={product.supplier?.name}
+                phone={product.supplier?.phone}
+                email={product.supplier?.email}
+                productName={product.name}
+                productReference={product.referenceCode}
+              />
+
+              {product.supplier && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setQuoteOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                  >
+                    <FileText size={16} />
+                    Solicitar orçamento
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSaveListOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    <ListPlus size={16} />
+                    Salvar em lista
+                  </button>
+
+                  <QuoteRequestModal
+                    open={quoteOpen}
+                    onClose={() => setQuoteOpen(false)}
+                    supplier={{
+                      name: product.supplier.name,
+                      phone: product.supplier.phone,
+                      email: product.supplier.email
+                    }}
+                    products={[toQuoteProduct(product)]}
+                  />
+
+                  <SaveToQuoteListModal
+                    open={saveListOpen}
+                    onClose={() => setSaveListOpen(false)}
+                    supplier={{
+                      id: product.supplier.id,
+                      name: product.supplier.name
+                    }}
+                    productIds={[product.id]}
+                  />
+                </>
+              )}
             </div>
 
             <div>
