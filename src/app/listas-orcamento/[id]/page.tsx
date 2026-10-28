@@ -1,7 +1,8 @@
 "use client";
 
+import { Suspense } from 'react';
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Mail, MessageCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, MessageCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
@@ -9,6 +10,14 @@ import type { QuoteList } from "@/types";
 import { QuoteRequestModal } from "@/components/quote-request-modal";
 
 export default function QuoteListDetailsPage() {
+  return (
+    <Suspense fallback={<div>Carregando detalhes...</div>}>
+      <QuoteListDetailsContent />
+    </Suspense>
+  );
+}
+
+function QuoteListDetailsContent() {
   const params = useParams();
   const router = useRouter();
 
@@ -57,11 +66,11 @@ export default function QuoteListDetailsPage() {
       setQuoteList((current) =>
         current
           ? {
-              ...current,
-              items: current.items.filter(
-                (item) => item.id !== itemId
-              )
-            }
+            ...current,
+            items: current.items.filter(
+              (item) => item.id !== itemId
+            )
+          }
           : current
       );
     } catch (error) {
