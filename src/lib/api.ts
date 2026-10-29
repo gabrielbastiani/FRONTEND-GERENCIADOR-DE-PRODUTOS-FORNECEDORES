@@ -9,7 +9,12 @@ import type {
   QuoteListStatus,
   Supplier,
   SupplierDocument,
-  DashboardSummary
+  DashboardSummary,
+  Purchase,
+  PurchaseInput,
+  PurchaseXmlPreview,
+  PurchaseLinkOption,
+  TransactionItem
 } from "@/types";
 
 const API_URL = (
@@ -117,15 +122,98 @@ export async function apiSendFormData<T = unknown>(
 }
 
 export const api = {
-    async getDashboardSummary() {
+  async getDashboardSummary() {
     return request<DashboardSummary>("/dashboard/summary");
+  },
+
+    async listPurchases(params?: {
+    supplierId?: string;
+    search?: string;
+    transactionId?: string;
+  }) {
+    const query = new URLSearchParams();
+
+    if (params?.supplierId) {
+      query.set("supplierId", params.supplierId);
+    }
+
+    if (params?.search) {
+      query.set("search", params.search);
+    }
+
+    if (params?.transactionId) {
+      query.set("transactionId", params.transactionId);
+    }
+
+    const queryString = query.toString();
+
+    return request<Purchase[]>(
+      `/purchases${queryString ? `?${queryString}` : ""}`
+    );
+  },
+
+  async listPurchaseLinkOptions(supplierId: string) {
+    return request<PurchaseLinkOption[]>(
+      `/purchases/link-options?supplierId=${encodeURIComponent(supplierId)}`
+    );
+  },
+
+  async parsePurchaseDocumentXml(documentId: string) {
+    return request<PurchaseXmlPreview>(
+      `/purchases/parse-document-xml/${documentId}`,
+      { method: "POST" }
+    );
+  },
+
+  async uploadPurchaseImage(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return request<{ imageUrl: string }>("/purchases/upload-image", {
+      method: "POST",
+      body: formData
+    });
+  },
+
+  async getPurchase(id: string) {
+    return request<Purchase>(`/purchases/${id}`);
+  },
+
+  async createPurchase(data: PurchaseInput) {
+    return request<Purchase>("/purchases", {
+      method: "POST",
+      body: JSON.stringify(data)
+    });
+  },
+
+  async updatePurchase(id: string, data: PurchaseInput) {
+    return request<Purchase>(`/purchases/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data)
+    });
+  },
+
+  async deletePurchase(id: string) {
+    return request<void>(`/purchases/${id}`, {
+      method: "DELETE"
+    });
+  },
+
+  async parsePurchaseXml(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return request<PurchaseXmlPreview>("/purchases/parse-xml", {
+      method: "POST",
+      body: formData
+    });
   },
 
   async listSuppliers() {
     return request<Supplier[]>("/suppliers");
   },
 
-    async listQuoteLists(params?: {
+  async listQuoteLists(params?: {
     status?: string;
     supplierId?: string;
   }) {
@@ -350,6 +438,25 @@ export const api = {
       `/transactions/${transactionId}/documents/${documentId}`,
       {
         method: "DELETE"
+      }
+    );
+  },
+
+    async replaceTransactionItems(
+    transactionId: string,
+    items: Array<{
+      productId: string | null;
+      name: string;
+      code: string | null;
+      quantity: number;
+      unitPrice: number;
+    }>
+  ) {
+    return request<TransactionItem[]>(
+      `/transactions/${transactionId}/items`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ items })
       }
     );
   },

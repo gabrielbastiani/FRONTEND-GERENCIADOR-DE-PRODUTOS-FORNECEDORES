@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
-import type { DashboardSummary } from "@/lib/dashboard-types";
 import { Loading } from "@/components/loading";
+import { DashboardSummary } from "@/types";
 
 const PRODUCT_STATUS_LABELS: Record<string, string> = {
   NOT_ANALYZED: "Não analisado",

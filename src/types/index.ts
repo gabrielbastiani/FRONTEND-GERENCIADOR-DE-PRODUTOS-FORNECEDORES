@@ -185,6 +185,7 @@ export type CommercialTransaction = {
     name: string;
   };
   documents?: SupplierDocument[];
+  items?: TransactionItem[];
   statusHistory?: CommercialTransactionStatusHistory[];
   _count?: {
     documents?: number;
@@ -303,4 +304,102 @@ export type DashboardSummary = {
     status: string;
     updatedAt: string;
   }>;
+};
+
+export type PurchaseItem = {
+  id: string;
+  productId: string | null;
+  name: string;
+  code: string | null;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  freightShare: number;
+  unitCost: number;
+  totalCost: number;
+  imageUrl: string | null;
+};
+
+export type Purchase = {
+  id: string;
+  supplierId: string;
+  supplier: { id: string; name: string };
+  invoiceNumber: string | null;
+  invoiceKey: string | null;
+  purchaseDate: string | null;
+  freightTotal: number;
+  notes: string | null;
+  source: "MANUAL" | "XML";
+  items: PurchaseItem[];
+  itemsTotal: number;
+  grandTotal: number;
+  createdAt: string;
+  updatedAt: string;
+  transactionId: string | null;
+  transaction: {
+    id: string;
+    quoteReference: string | null;
+    orderReference: string | null;
+    status: string;
+  } | null;
+};
+
+export type PurchaseInput = {
+  supplierId: string;
+  invoiceNumber: string | null;
+  invoiceKey: string | null;
+  purchaseDate: string | null;
+  transactionId?: string | null;
+  freightTotal: number;
+  notes: string | null;
+  source: "MANUAL" | "XML";
+  items: Array<{
+    productId: string | null;
+    name: string;
+    code: string | null;
+    quantity: number;
+    unitPrice: number;
+    imageUrl?: string | null;
+  }>;
+};
+
+export type PurchaseXmlPreview = {
+  invoiceNumber: string;
+  invoiceKey: string;
+  purchaseDate: string;
+  transactionId?: string | null;
+  freightTotal: number;
+  issuer: { name: string; document: string };
+  supplierId: string | null;
+  alreadyImportedPurchaseId: string | null;
+  items: Array<{
+    productId: string | null;
+    name: string;
+    code: string;
+    quantity: number;
+    unitPrice: number;
+    imageUrl: string | null;
+  }>;
+};
+
+export type PurchaseLinkOption = {
+  id: string;
+  quoteReference: string | null;
+  orderReference: string | null;
+  quoteDate: string | null;
+  orderEffectiveDate: string | null;
+  status: string;
+  purchaseCount: number;
+  xmlDocuments: Array<{ id: string; originalName: string }>;
+};
+
+export type TransactionItem = {
+  id: string;
+  transactionId: string;
+  productId: string | null;
+  name: string;
+  code: string | null;
+  quantity: number;
+  unitPrice: number;
+  sortOrder: number;
 };
