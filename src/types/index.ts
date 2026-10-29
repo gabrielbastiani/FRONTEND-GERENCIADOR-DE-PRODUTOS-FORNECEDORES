@@ -403,3 +403,45 @@ export type TransactionItem = {
   unitPrice: number;
   sortOrder: number;
 };
+
+export type FiscalCertificate = {
+  id: string;
+  cnpj: string;
+  companyName: string | null;
+  ufCode: number;
+  environment: number;
+  validFrom: string;
+  validTo: string;
+  autoCiencia: boolean;
+  autoSync: boolean;
+  lastNsu: string;
+  maxNsu: string | null;
+  blockedUntil: string | null;
+  lastSyncAt: string | null;
+  lastSyncStatus: string | null;
+  lastSyncMessage: string | null;
+};
+
+export type ReceivedInvoice = {
+  id: string;
+  accessKey: string;
+  issuerCnpj: string;
+  issuerName: string;
+  number: string | null;
+  series: string | null;
+  issuedAt: string | null;
+  totalValue: number;
+  hasFullXml: boolean;
+  cancelled: boolean;
+  manifestStatus: "NONE" | "CIENCIA" | "CONFIRMADA" | "ERRO";
+  manifestMessage: string | null;
+  supplierId: string | null;
+  supplier: { id: string; name: string } | null;
+};
+
+export type ReceivedInvoiceList = {
+  data: ReceivedInvoice[];
+  total: number;
+  page: number;
+  limit: number;
+};

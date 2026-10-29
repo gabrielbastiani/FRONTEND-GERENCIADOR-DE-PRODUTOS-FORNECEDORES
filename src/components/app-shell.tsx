@@ -14,7 +14,8 @@ const navigationItems: NavigationItem[] = [
   { href: "/fornecedores", label: "Fornecedores" },
   { href: "/produtos", label: "Produtos" },
   { href: "/listas-orcamento", label: "Orçamentos prévios" },
-  { href: "/compras", label: "Compras" }
+  { href: "/compras", label: "Compras" },
+  { href: "/notas-recebidas", label: "Notas recebidas" }
 ];
 
 function getLinkClassName(isActive: boolean) {

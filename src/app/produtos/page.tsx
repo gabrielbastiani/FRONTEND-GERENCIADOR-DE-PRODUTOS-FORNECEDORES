@@ -382,7 +382,7 @@ export default function ProductsPage() {
                   </th>
 
                   <th className="px-5 py-3">
-                    Referência
+                    Código/Referência
                   </th>
 
                   <th className="px-5 py-3">

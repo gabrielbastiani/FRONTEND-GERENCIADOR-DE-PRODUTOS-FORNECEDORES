@@ -14,7 +14,9 @@ import type {
   PurchaseInput,
   PurchaseXmlPreview,
   PurchaseLinkOption,
-  TransactionItem
+  TransactionItem,
+  ReceivedInvoiceList,
+  FiscalCertificate
 } from "@/types";
 
 const API_URL = (
@@ -150,6 +152,91 @@ export const api = {
     return request<Purchase[]>(
       `/purchases${queryString ? `?${queryString}` : ""}`
     );
+  },
+
+    async getFiscalCertificate() {
+    return request<FiscalCertificate | null>("/fiscal/certificate");
+  },
+
+  async saveFiscalCertificate(input: {
+    pfxBase64: string;
+    password: string;
+    ufCode: number;
+    environment: number;
+    autoCiencia: boolean;
+    autoSync: boolean;
+    cnpj?: string;
+  }) {
+    return request<FiscalCertificate>("/fiscal/certificate", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  },
+
+  async updateFiscalCertificate(input: {
+    autoCiencia?: boolean;
+    autoSync?: boolean;
+  }) {
+    return request<FiscalCertificate>("/fiscal/certificate", {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    });
+  },
+
+  async deleteFiscalCertificate() {
+    return request<{ ok: boolean }>("/fiscal/certificate", {
+      method: "DELETE"
+    });
+  },
+
+  async syncFiscalNow() {
+    return request<{ message: string; certificate: FiscalCertificate | null }>(
+      "/fiscal/sync",
+      { method: "POST" }
+    );
+  },
+
+  async listReceivedInvoices(params: {
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const query = new URLSearchParams();
+
+    if (params.search) query.set("search", params.search);
+    if (params.status) query.set("status", params.status);
+    query.set("page", String(params.page ?? 1));
+    query.set("limit", String(params.limit ?? 20));
+
+    return request<ReceivedInvoiceList>(`/fiscal/invoices?${query.toString()}`);
+  },
+
+  async getReceivedInvoiceXml(id: string) {
+    return request<{ fileName: string; xml: string }>(
+      `/fiscal/invoices/${id}/xml`
+    );
+  },
+
+  async manifestReceivedInvoice(id: string, kind: "CIENCIA" | "CONFIRMACAO") {
+    return request<{ ok: boolean }>(`/fiscal/invoices/${id}/manifest`, {
+      method: "POST",
+      body: JSON.stringify({ kind })
+    });
+  },
+
+  async fetchReceivedInvoiceXml(id: string) {
+    return request<{ id: string; hasFullXml: boolean }>(
+      `/fiscal/invoices/${id}/fetch-xml`,
+      { method: "POST" }
+    );
+  },
+
+  async fetchInvoiceByKey(accessKey: string) {
+    return request<{ id: string; hasFullXml: boolean }>("/fiscal/fetch-by-key", {
+      method: "POST",
+      body: JSON.stringify({ accessKey })
+    });
   },
 
   async listPurchaseLinkOptions(supplierId: string) {
