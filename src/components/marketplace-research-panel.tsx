@@ -110,8 +110,8 @@ export function MarketplaceResearchPanel({
 
   const productCost =
     product.cost === null ||
-    product.cost === undefined ||
-    product.cost === ""
+      product.cost === undefined ||
+      product.cost === ""
       ? null
       : Number(product.cost);
 
@@ -167,13 +167,14 @@ export function MarketplaceResearchPanel({
     }));
   }
 
-  function resetForm() {
+  function resetForm(nextSearchTerm = searchTerm.trim()) {
     setEditingId("");
-    setForm({ ...emptyForm, searchedTerm: searchTerm.trim() });
+    setForm({ ...emptyForm, searchedTerm: nextSearchTerm });
   }
 
   function startEdit(record: MarketplaceResearch) {
     setEditingId(record.id);
+    setSearchTerm(record.searchedTerm);
     setError("");
     setForm({
       marketplace: record.marketplace,
@@ -218,13 +219,29 @@ export function MarketplaceResearchPanel({
       setSaving(true);
       setError("");
 
-      if (editingId) {
-        await updateResearch(editingId, payload);
-      } else {
-        await createResearch(product.id, payload);
-      }
+      const savedRecord = editingId
+        ? await updateResearch(editingId, payload)
+        : await createResearch(product.id, payload);
 
-      resetForm();
+      // Sincroniza o termo superior com o termo efetivamente salvo.
+      // Não use resetForm() sem argumento aqui: o estado searchTerm ainda
+      // pode conter o valor anterior nesta mesma execução do handler.
+      setSearchTerm(savedRecord.searchedTerm);
+      resetForm(savedRecord.searchedTerm);
+
+      // Atualiza o histórico imediatamente com a resposta do servidor.
+      setRecords((current) => {
+        const alreadyExists = current.some(
+          (record) => record.id === savedRecord.id
+        );
+
+        return alreadyExists
+          ? current.map((record) =>
+            record.id === savedRecord.id ? savedRecord : record
+          )
+          : [savedRecord, ...current];
+      });
+
       await loadRecords();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
@@ -254,69 +271,69 @@ export function MarketplaceResearchPanel({
 
   const hasTerm = searchTerm.trim().length > 0;
 
- function parseNumber(value: string | number | null | undefined) {
-  if (value === null || value === undefined) {
-    return 0;
+  function parseNumber(value: string | number | null | undefined) {
+    if (value === null || value === undefined) {
+      return 0;
+    }
+
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const text = value.trim();
+
+    if (!text) {
+      return 0;
+    }
+
+    const normalized = text.includes(",")
+      ? text.replace(/\./g, "").replace(",", ".")
+      : text;
+
+    const parsed = Number(normalized);
+
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
+  function calculateResearchResult({
+    salePrice,
+    productCost,
+    marketplaceFeePercent,
+    shippingCost,
+    taxCost,
+    otherCosts
+  }: {
+    salePrice: number;
+    productCost: number;
+    marketplaceFeePercent: number;
+    shippingCost: number;
+    taxCost: number;
+    otherCosts: number;
+  }) {
+    const marketplaceFee =
+      salePrice * (marketplaceFeePercent / 100);
+
+    const totalCosts =
+      productCost +
+      marketplaceFee +
+      shippingCost +
+      taxCost +
+      otherCosts;
+
+    const estimatedProfit = salePrice - totalCosts;
+
+    const estimatedMargin =
+      salePrice > 0
+        ? (estimatedProfit / salePrice) * 100
+        : 0;
+
+    return {
+      marketplaceFee,
+      totalCosts,
+      estimatedProfit,
+      estimatedMargin
+    };
   }
-
-  const text = value.trim();
-
-  if (!text) {
-    return 0;
-  }
-
-  const normalized = text.includes(",")
-    ? text.replace(/\./g, "").replace(",", ".")
-    : text;
-
-  const parsed = Number(normalized);
-
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function calculateResearchResult({
-  salePrice,
-  productCost,
-  marketplaceFeePercent,
-  shippingCost,
-  taxCost,
-  otherCosts
-}: {
-  salePrice: number;
-  productCost: number;
-  marketplaceFeePercent: number;
-  shippingCost: number;
-  taxCost: number;
-  otherCosts: number;
-}) {
-  const marketplaceFee =
-    salePrice * (marketplaceFeePercent / 100);
-
-  const totalCosts =
-    productCost +
-    marketplaceFee +
-    shippingCost +
-    taxCost +
-    otherCosts;
-
-  const estimatedProfit = salePrice - totalCosts;
-
-  const estimatedMargin =
-    salePrice > 0
-      ? (estimatedProfit / salePrice) * 100
-      : 0;
-
-  return {
-    marketplaceFee,
-    totalCosts,
-    estimatedProfit,
-    estimatedMargin
-  };
-}
 
   return (
     <section className="space-y-6 rounded-xl border bg-white p-6 shadow-sm">
@@ -711,11 +728,10 @@ function calculateResearchResult({
                         {money(record.estimatedProfit)}
                       </td>
                       <td
-                        className={`px-4 py-3 font-medium ${
-                          margin === null
+                        className={`px-4 py-3 font-medium ${margin === null
                             ? "text-slate-400"
                             : marginClass(margin)
-                        }`}
+                          }`}
                       >
                         {margin === null
                           ? "-"

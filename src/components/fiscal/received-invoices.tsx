@@ -40,8 +40,9 @@ function formatDateTime(value: string | null) {
 }
 
 function formatCnpj(value: string) {
-  return value.length === 14
-    ? value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")
+  const cnpj = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return cnpj.length === 14
+    ? cnpj.replace(/^(.{2})(.{3})(.{3})(.{4})(.{2})$/, "$1.$2.$3/$4-$5")
     : value;
 }
 

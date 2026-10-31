@@ -12,6 +12,7 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { href: "/", label: "Dashboard" },
   { href: "/fornecedores", label: "Fornecedores" },
+  { href: "/prospeccao", label: "Prospecção" },
   { href: "/produtos", label: "Produtos" },
   { href: "/listas-orcamento", label: "Orçamentos prévios" },
   { href: "/compras", label: "Compras" },

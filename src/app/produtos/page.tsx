@@ -9,6 +9,7 @@ import {
   getErrorMessage
 } from "@/lib/utils";
 import type {
+  Catalog,
   Product,
   ProductStatus,
   Supplier
@@ -23,9 +24,12 @@ import { SaveToQuoteListModal } from "@/components/save-to-quote-list-modal";
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [catalogs, setCatalogs] = useState<Catalog[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ProductStatus | "">("");
   const [supplierId, setSupplierId] = useState("");
+  const [catalogId, setCatalogId] = useState("");
+  const [sourcePageOrder, setSourcePageOrder] = useState<"" | "asc" | "desc">("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -87,6 +91,8 @@ export default function ProductsPage() {
         search: search || undefined,
         status: status || undefined,
         supplierId: supplierId || undefined,
+        catalogId: catalogId || undefined,
+        sourcePageOrder: sourcePageOrder || undefined,
         activeSuppliersOnly: true,
         page: 1,
         limit: 100
@@ -117,6 +123,13 @@ export default function ProductsPage() {
       .catch((err) => {
         setError(getErrorMessage(err));
       });
+
+    api
+      .listCatalogs()
+      .then(setCatalogs)
+      .catch((err) => {
+        setError(getErrorMessage(err));
+      });
   }, []);
 
   useEffect(() => {
@@ -125,7 +138,7 @@ export default function ProductsPage() {
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [search, status, supplierId]);
+  }, [search, status, supplierId, catalogId, sourcePageOrder]);
 
   function toggleProduct(id: string) {
     setSelectedIds((current) =>
@@ -212,8 +225,8 @@ export default function ProductsPage() {
         </Link>
       </div>
 
-      <div className="grid gap-3 rounded-xl border bg-white p-4 shadow-sm md:grid-cols-3">
-        <div className="relative">
+      <div className="grid gap-3 rounded-xl border bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-6">
+        <div className="relative xl:col-span-2">
           <Search
             size={17}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -223,13 +236,18 @@ export default function ProductsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Nome, código, marca, modelo ou EAN"
+            aria-label="Pesquisar produtos"
             className="w-full rounded-lg border py-2.5 pl-9 pr-3 text-sm outline-none focus:border-blue-500"
           />
         </div>
 
         <select
           value={supplierId}
-          onChange={(event) => setSupplierId(event.target.value)}
+          onChange={(event) => {
+            setSupplierId(event.target.value);
+            setCatalogId("");
+          }}
+          aria-label="Filtrar por fornecedor"
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         >
           <option value="">Todos os fornecedores</option>
@@ -242,10 +260,29 @@ export default function ProductsPage() {
         </select>
 
         <select
+          value={catalogId}
+          onChange={(event) => setCatalogId(event.target.value)}
+          aria-label="Filtrar por catálogo"
+          className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+        >
+          <option value="">Todos os catálogos</option>
+
+          {catalogs
+            .filter((catalog) => suppliers.some((supplier) => supplier.id === catalog.supplierId))
+            .filter((catalog) => !supplierId || catalog.supplierId === supplierId)
+            .map((catalog) => (
+              <option key={catalog.id} value={catalog.id}>
+                {catalog.title}
+              </option>
+            ))}
+        </select>
+
+        <select
           value={status}
           onChange={(event) =>
             setStatus(event.target.value as ProductStatus | "")
           }
+          aria-label="Filtrar por situação"
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         >
           <option value="">Todos os status</option>
@@ -254,6 +291,19 @@ export default function ProductsPage() {
           <option value="PROMISING">Promissor</option>
           <option value="WAITING">Aguardando</option>
           <option value="DISCARDED">Descartado</option>
+        </select>
+
+        <select
+          value={sourcePageOrder}
+          onChange={(event) =>
+            setSourcePageOrder(event.target.value as "" | "asc" | "desc")
+          }
+          aria-label="Ordenar pela página do catálogo"
+          className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+        >
+          <option value="">Ordem: mais recentes</option>
+          <option value="asc">Página: menor para maior</option>
+          <option value="desc">Página: maior para menor</option>
         </select>
       </div>
 
@@ -354,7 +404,7 @@ export default function ProductsPage() {
       ) : (
         <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[1250px] text-left text-sm">
               <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="w-12 px-5 py-3">
@@ -375,6 +425,14 @@ export default function ProductsPage() {
 
                   <th className="px-5 py-3">
                     Fornecedor
+                  </th>
+
+                  <th className="px-5 py-3">
+                    Nome do catálogo
+                  </th>
+
+                  <th className="px-5 py-3 whitespace-nowrap">
+                    Página do catálogo
                   </th>
 
                   <th className="px-5 py-3">
@@ -460,6 +518,21 @@ export default function ProductsPage() {
 
                       <td className="px-5 py-4 text-slate-600">
                         {product.supplier?.name || "-"}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-600">
+                        <span
+                          className="block max-w-[240px] truncate"
+                          title={product.catalog?.title || "Sem catálogo associado"}
+                        >
+                          {product.catalog?.title || "Sem catálogo associado"}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 whitespace-nowrap text-slate-600">
+                        {product.sourcePage
+                          ? `Página ${product.sourcePage}`
+                          : "Não informada"}
                       </td>
 
                       <td className="px-5 py-4">

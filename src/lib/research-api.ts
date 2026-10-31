@@ -38,7 +38,11 @@ export interface ResearchPayload {
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
+    // A lista é recarregada depois de criar/editar/excluir uma pesquisa.
+    // Evita que o navegador ou uma camada intermediária reapresente um GET antigo.
+    cache: "no-store",
     headers: {
+      Accept: "application/json",
       "Content-Type": "application/json",
       ...(init?.headers ?? {})
     }

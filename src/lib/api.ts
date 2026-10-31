@@ -705,8 +705,10 @@ export const api = {
 
   async listProducts(params?: {
     supplierId?: string;
+    catalogId?: string;
     status?: ProductStatus;
     search?: string;
+    sourcePageOrder?: "asc" | "desc";
     activeSuppliersOnly?: boolean;
     page?: number;
     limit?: number;
@@ -717,12 +719,20 @@ export const api = {
       query.set("supplierId", params.supplierId);
     }
 
+    if (params?.catalogId) {
+      query.set("catalogId", params.catalogId);
+    }
+
     if (params?.status) {
       query.set("status", params.status);
     }
 
     if (params?.search) {
       query.set("search", params.search);
+    }
+
+    if (params?.sourcePageOrder) {
+      query.set("sourcePageOrder", params.sourcePageOrder);
     }
 
     if (params?.activeSuppliersOnly) {
@@ -857,13 +867,6 @@ export const api = {
       method: "DELETE"
     });
   },
-
-  /* async deleteProductsBulk(ids: string[]) {
-    return request<void>("/products/bulk", {
-      method: "DELETE",
-      body: JSON.stringify({ ids })
-    });
-  }, */
 
   async deleteProductImage(productId: string, imageId: string) {
     return request<void>(
