@@ -1,3 +1,15 @@
+export type PaginationMetadata = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  pagination: PaginationMetadata;
+};
+
 export type ProductStatus =
   | "NOT_ANALYZED"
   | "IN_VALIDATION"
@@ -342,6 +354,10 @@ export type Purchase = {
     orderReference: string | null;
     status: string;
   } | null;
+};
+
+export type PurchaseListResponse = PaginatedResponse<Purchase> & {
+  totalSpent: number;
 };
 
 export type PurchaseInput = {

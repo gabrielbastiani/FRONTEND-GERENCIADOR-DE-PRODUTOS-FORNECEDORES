@@ -5,6 +5,8 @@ import type {
   Product,
   ProductListResponse,
   ProductStatus,
+  PaginatedResponse,
+  PurchaseListResponse,
   QuoteList,
   QuoteListStatus,
   Supplier,
@@ -154,7 +156,24 @@ export const api = {
     );
   },
 
-    async getFiscalCertificate() {
+    async listPurchasesPage(params: {
+    supplierId?: string;
+    search?: string;
+    transactionId?: string;
+    page: number;
+    limit: number;
+  }) {
+    const query = new URLSearchParams();
+    if (params.supplierId) query.set("supplierId", params.supplierId);
+    if (params.search) query.set("search", params.search);
+    if (params.transactionId) query.set("transactionId", params.transactionId);
+    query.set("page", String(params.page));
+    query.set("limit", String(params.limit));
+
+    return request<PurchaseListResponse>(`/purchases?${query.toString()}`);
+  },
+
+  async getFiscalCertificate() {
     return request<FiscalCertificate | null>("/fiscal/certificate");
   },
 
@@ -300,6 +319,21 @@ export const api = {
     return request<Supplier[]>("/suppliers");
   },
 
+  async listSuppliersPage(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    includeInactive?: boolean;
+  }) {
+    const query = new URLSearchParams();
+    query.set("page", String(params.page));
+    query.set("limit", String(params.limit));
+    if (params.search) query.set("search", params.search);
+    if (params.includeInactive === false) query.set("includeInactive", "false");
+
+    return request<PaginatedResponse<Supplier>>(`/suppliers?${query.toString()}`);
+  },
+
   async listQuoteLists(params?: {
     status?: string;
     supplierId?: string;
@@ -319,6 +353,21 @@ export const api = {
     return request<QuoteList[]>(
       `/quote-lists${query ? `?${query}` : ""}`
     );
+  },
+
+  async listQuoteListsPage(params: {
+    page: number;
+    limit: number;
+    status?: string;
+    supplierId?: string;
+  }) {
+    const query = new URLSearchParams();
+    query.set("page", String(params.page));
+    query.set("limit", String(params.limit));
+    if (params.status) query.set("status", params.status);
+    if (params.supplierId) query.set("supplierId", params.supplierId);
+
+    return request<PaginatedResponse<QuoteList>>(`/quote-lists?${query.toString()}`);
   },
 
   async getQuoteList(id: string) {
@@ -867,6 +916,13 @@ export const api = {
       method: "DELETE"
     });
   },
+
+  /* async deleteProductsBulk(ids: string[]) {
+    return request<void>("/products/bulk", {
+      method: "DELETE",
+      body: JSON.stringify({ ids })
+    });
+  }, */
 
   async deleteProductImage(productId: string, imageId: string) {
     return request<void>(

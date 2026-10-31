@@ -20,6 +20,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { SupplierContactButtons } from "@/components/supplier-contact-buttons";
 import { QuoteRequestModal } from "@/components/quote-request-modal";
 import { SaveToQuoteListModal } from "@/components/save-to-quote-list-modal";
+import { PaginationControls } from "@/components/pagination-controls";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -30,6 +31,9 @@ export default function ProductsPage() {
   const [supplierId, setSupplierId] = useState("");
   const [catalogId, setCatalogId] = useState("");
   const [sourcePageOrder, setSourcePageOrder] = useState<"" | "asc" | "desc">("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -78,6 +82,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (quoteOpen && !hasSingleSupplier) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuoteOpen(false);
     }
   }, [quoteOpen, hasSingleSupplier]);
@@ -94,11 +99,17 @@ export default function ProductsPage() {
         catalogId: catalogId || undefined,
         sourcePageOrder: sourcePageOrder || undefined,
         activeSuppliersOnly: true,
-        page: 1,
-        limit: 100
+        page,
+        limit
       });
 
       setProducts(result.data);
+      setPagination(result.pagination);
+
+      if (result.pagination.totalPages > 0 && page > result.pagination.totalPages) {
+        setPage(result.pagination.totalPages);
+        return;
+      }
 
       setSelectedIds((current) =>
         current.filter((id) =>
@@ -138,7 +149,7 @@ export default function ProductsPage() {
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [search, status, supplierId, catalogId, sourcePageOrder]);
+  }, [search, status, supplierId, catalogId, sourcePageOrder, page, limit]);
 
   function toggleProduct(id: string) {
     setSelectedIds((current) =>
@@ -234,7 +245,11 @@ export default function ProductsPage() {
 
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+              setSelectedIds([]);
+            }}
             placeholder="Nome, código, marca, modelo ou EAN"
             aria-label="Pesquisar produtos"
             className="w-full rounded-lg border py-2.5 pl-9 pr-3 text-sm outline-none focus:border-blue-500"
@@ -246,6 +261,8 @@ export default function ProductsPage() {
           onChange={(event) => {
             setSupplierId(event.target.value);
             setCatalogId("");
+            setPage(1);
+            setSelectedIds([]);
           }}
           aria-label="Filtrar por fornecedor"
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
@@ -261,7 +278,11 @@ export default function ProductsPage() {
 
         <select
           value={catalogId}
-          onChange={(event) => setCatalogId(event.target.value)}
+          onChange={(event) => {
+            setCatalogId(event.target.value);
+            setPage(1);
+            setSelectedIds([]);
+          }}
           aria-label="Filtrar por catálogo"
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         >
@@ -279,9 +300,11 @@ export default function ProductsPage() {
 
         <select
           value={status}
-          onChange={(event) =>
-            setStatus(event.target.value as ProductStatus | "")
-          }
+          onChange={(event) => {
+            setStatus(event.target.value as ProductStatus | "");
+            setPage(1);
+            setSelectedIds([]);
+          }}
           aria-label="Filtrar por situação"
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         >
@@ -295,9 +318,11 @@ export default function ProductsPage() {
 
         <select
           value={sourcePageOrder}
-          onChange={(event) =>
-            setSourcePageOrder(event.target.value as "" | "asc" | "desc")
-          }
+          onChange={(event) => {
+            setSourcePageOrder(event.target.value as "" | "asc" | "desc");
+            setPage(1);
+            setSelectedIds([]);
+          }}
           aria-label="Ordenar pela página do catálogo"
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         >
@@ -575,6 +600,25 @@ export default function ProductsPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {!loading && pagination.total > 0 && (
+        <PaginationControls
+          page={pagination.page}
+          limit={pagination.limit}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          itemLabel="produtos"
+          onPageChange={(nextPage) => {
+            setSelectedIds([]);
+            setPage(nextPage);
+          }}
+          onLimitChange={(nextLimit) => {
+            setSelectedIds([]);
+            setLimit(nextLimit);
+            setPage(1);
+          }}
+        />
       )}
 
       <QuoteRequestModal

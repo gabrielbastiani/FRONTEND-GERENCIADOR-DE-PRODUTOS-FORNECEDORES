@@ -7,34 +7,49 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 import type { Supplier } from "@/types";
 import { Loading } from "@/components/loading";
+import { PaginationControls } from "@/components/pagination-controls";
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(12);
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function loadSuppliers() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const data = await api.listSuppliers();
-      setSuppliers(data);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadSuppliers();
-  }, []);
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-  const filteredSuppliers = suppliers.filter((supplier) =>
-    supplier.name.toLowerCase().includes(search.toLowerCase())
-  );
+        const result = await api.listSuppliersPage({
+          page,
+          limit,
+          search: search.trim() || undefined
+        });
+
+        if (cancelled) return;
+        setSuppliers(result.data);
+        setPagination(result.pagination);
+
+        if (result.pagination.totalPages > 0 && page > result.pagination.totalPages) {
+          setPage(result.pagination.totalPages);
+        }
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, search ? 250 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [search, page, limit]);
 
   return (
     <div className="space-y-8">
@@ -78,7 +93,10 @@ export default function SuppliersPage() {
 
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder="Pesquisar fornecedor"
               className="rounded-lg border py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500"
             />
@@ -87,13 +105,13 @@ export default function SuppliersPage() {
 
         {loading ? (
           <Loading />
-        ) : filteredSuppliers.length === 0 ? (
+        ) : suppliers.length === 0 ? (
           <div className="rounded-xl border bg-white p-8 text-center text-sm text-slate-500">
             Nenhum fornecedor encontrado.
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredSuppliers.map((supplier) => (
+            {suppliers.map((supplier) => (
               <div
                 key={supplier.id}
                 className="rounded-xl border bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
@@ -160,6 +178,21 @@ export default function SuppliersPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {!loading && pagination.total > 0 && (
+          <PaginationControls
+            page={pagination.page}
+            limit={pagination.limit}
+            total={pagination.total}
+            totalPages={pagination.totalPages}
+            itemLabel="fornecedores"
+            onPageChange={setPage}
+            onLimitChange={(nextLimit) => {
+              setLimit(nextLimit);
+              setPage(1);
+            }}
+          />
         )}
       </section>
     </div>

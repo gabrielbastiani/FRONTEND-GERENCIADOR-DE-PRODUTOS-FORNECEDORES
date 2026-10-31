@@ -5,48 +5,64 @@ import { useEffect, useState } from "react";
 import { FileText, Plus, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { QuoteList } from "@/types";
+import { PaginationControls } from "@/components/pagination-controls";
 
 export default function QuoteListsPage() {
   const [lists, setLists] = useState<QuoteList[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(12);
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, totalPages: 0 });
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function loadLists() {
-    try {
-      setLoading(true);
-      setError("");
-
-      const result = await api.listQuoteLists();
-
-      setLists(result);
-    } catch (error) {
-      console.error(error);
-      setError("Não foi possível carregar as listas.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadLists() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const result = await api.listQuoteListsPage({ page, limit });
+        if (cancelled) return;
+
+        setLists(result.data);
+        setPagination(result.pagination);
+
+        if (result.pagination.totalPages > 0 && page > result.pagination.totalPages) {
+          setPage(result.pagination.totalPages);
+        }
+      } catch (loadError) {
+        console.error(loadError);
+        if (!cancelled) setError("Não foi possível carregar as listas.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
     loadLists();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [page, limit, refreshKey]);
 
   async function handleDelete(id: string) {
     const confirmed = window.confirm(
       "Deseja realmente excluir esta lista de orçamento?"
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       await api.deleteQuoteList(id);
-      setLists((current) =>
-        current.filter((quoteList) => quoteList.id !== id)
-      );
-    } catch (error) {
-      console.error(error);
+      if (lists.length === 1 && page > 1) {
+        setPage((current) => current - 1);
+      } else {
+        setRefreshKey((current) => current + 1);
+      }
+    } catch (deleteError) {
+      console.error(deleteError);
       alert("Não foi possível excluir a lista.");
     }
   }
@@ -161,6 +177,21 @@ export default function QuoteListsPage() {
           ))}
         </div>
       )}
+      {!loading && pagination.total > 0 && (
+        <PaginationControls
+          page={pagination.page}
+          limit={pagination.limit}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          itemLabel="listas de orçamento"
+          onPageChange={setPage}
+          onLimitChange={(nextLimit) => {
+            setLimit(nextLimit);
+            setPage(1);
+          }}
+        />
+      )}
+
     </div>
   );
 }

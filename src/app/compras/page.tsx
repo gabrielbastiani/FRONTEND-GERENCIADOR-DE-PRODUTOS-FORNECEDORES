@@ -8,12 +8,18 @@ import { getErrorMessage } from "@/lib/utils";
 import type { Purchase, Supplier } from "@/types";
 import { formatBRL, formatPurchaseDate } from "@/lib/purchase-calc";
 import { Loading } from "@/components/loading";
+import { PaginationControls } from "@/components/pagination-controls";
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -22,26 +28,39 @@ export default function PurchasesPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
         setLoading(true);
         setError("");
 
-        setPurchases(
-          await api.listPurchases({
-            supplierId: supplierId || undefined,
-            search: search || undefined
-          })
-        );
-      } catch (err) {
-        setError(getErrorMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
+        const result = await api.listPurchasesPage({
+          supplierId: supplierId || undefined,
+          search: search.trim() || undefined,
+          page,
+          limit
+        });
 
-    return () => window.clearTimeout(timer);
-  }, [supplierId, search]);
+        if (cancelled) return;
+        setPurchases(result.data);
+        setPagination(result.pagination);
+        setTotalSpent(result.totalSpent);
+
+        if (result.pagination.totalPages > 0 && page > result.pagination.totalPages) {
+          setPage(result.pagination.totalPages);
+        }
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, search ? 300 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [supplierId, search, page, limit, refreshKey]);
 
   async function handleDelete(id: string) {
     if (!window.confirm("Deseja realmente excluir esta compra?")) {
@@ -50,13 +69,15 @@ export default function PurchasesPage() {
 
     try {
       await api.deletePurchase(id);
-      setPurchases((current) => current.filter((item) => item.id !== id));
+      if (purchases.length === 1 && page > 1) {
+        setPage((current) => current - 1);
+      } else {
+        setRefreshKey((current) => current + 1);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     }
   }
-
-  const totalSpent = purchases.reduce((sum, item) => sum + item.grandTotal, 0);
 
   return (
     <div className="space-y-6">
@@ -81,14 +102,20 @@ export default function PurchasesPage() {
       <div className="grid gap-3 rounded-xl border bg-white p-4 shadow-sm md:grid-cols-3">
         <input
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder="Número da nota fiscal"
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         />
 
         <select
           value={supplierId}
-          onChange={(event) => setSupplierId(event.target.value)}
+          onChange={(event) => {
+            setSupplierId(event.target.value);
+            setPage(1);
+          }}
           className="rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500"
         >
           <option value="">Todos os fornecedores</option>
@@ -187,6 +214,21 @@ export default function PurchasesPage() {
           </div>
         </div>
       )}
+      {!loading && pagination.total > 0 && (
+        <PaginationControls
+          page={pagination.page}
+          limit={pagination.limit}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          itemLabel="compras"
+          onPageChange={setPage}
+          onLimitChange={(nextLimit) => {
+            setLimit(nextLimit);
+            setPage(1);
+          }}
+        />
+      )}
+
     </div>
   );
 }
