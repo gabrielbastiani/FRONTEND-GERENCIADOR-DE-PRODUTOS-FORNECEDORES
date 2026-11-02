@@ -12,8 +12,18 @@ export function parseDecimal(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", {
+export function formatBRL(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  const numericValue = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "—";
+  }
+
+  return numericValue.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
     minimumFractionDigits: 2,

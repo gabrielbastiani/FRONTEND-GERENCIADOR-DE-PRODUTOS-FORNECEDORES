@@ -18,7 +18,7 @@ export default function PurchasesPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [totalSpent, setTotalSpent] = useState(0);
+  const [totalSpent, setTotalSpent] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,9 +42,21 @@ export default function PurchasesPage() {
         });
 
         if (cancelled) return;
+        if (!Array.isArray(result.data) || !result.pagination) {
+          throw new Error("A API retornou um formato inválido para a listagem de compras.");
+        }
+
         setPurchases(result.data);
         setPagination(result.pagination);
-        setTotalSpent(result.totalSpent);
+
+        const totalSpentValue = Number(result.totalSpent);
+        setTotalSpent(
+          result.totalSpent !== null &&
+          result.totalSpent !== undefined &&
+          Number.isFinite(totalSpentValue)
+            ? totalSpentValue
+            : null
+        );
 
         if (result.pagination.totalPages > 0 && page > result.pagination.totalPages) {
           setPage(result.pagination.totalPages);
@@ -128,7 +140,7 @@ export default function PurchasesPage() {
 
         <div className="flex items-center justify-end text-sm text-slate-600">
           Total listado:&nbsp;
-          <strong className="text-slate-900">{formatBRL(totalSpent)}</strong>
+          <strong className="text-slate-900">{totalSpent === null ? "Total não retornado pela API" : formatBRL(totalSpent)}</strong>
         </div>
       </div>
 
